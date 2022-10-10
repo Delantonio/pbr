@@ -39,9 +39,9 @@ main()
 
   //vec3 diffuse = ;
 
-  outFragColor.rgba = LinearTosRGB(vec4(albedo, 1.0));
+  //outFragColor.rgba = LinearTosRGB(vec4(albedo, 1.0));
   
   // To debug normals
-  /* outFragColor.rgba = LinearTosRGB(vec4(vNormalWS, 1.0)); */
+  outFragColor.rgba = LinearTosRGB(vec4(vNormalWS, 1.0));
 }
 `;

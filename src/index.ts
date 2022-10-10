@@ -1,10 +1,10 @@
 import { GUI } from 'dat.gui';
 import { mat4, vec3 } from 'gl-matrix';
 import { Camera } from './camera';
-import { TriangleGeometry } from './geometries/triangle';
+//import { TriangleGeometry } from './geometries/triangle';
 import { SphereGeometry } from './geometries/sphere';
-import { PointLight } from './lights/lights.ts';
-import { Transform } from './transform.ts';
+import { PointLight } from './lights/lights';
+import { Transform } from './transform';
 import { GLContext } from './gl';
 import { PBRShader } from './shader/pbr-shader';
 import { Texture, Texture2D } from './textures/texture';
@@ -28,10 +28,17 @@ class Application {
   private _context: GLContext;
 
   private _shader: PBRShader;
-  // private _geometry: TriangleGeometry;
+  //private _geometry: TriangleGeometry;
   private _transformer: Transform;
-  private _geometry: SphereGeometry;
+  private _geometry1: SphereGeometry;
   private _geometry2: SphereGeometry;
+  private _geometry3: SphereGeometry;
+  private _geometry4: SphereGeometry;
+  private _geometry5: SphereGeometry;
+  private _geometry6: SphereGeometry;
+  private _geometry7: SphereGeometry;
+  private _geometry8: SphereGeometry;
+  private _geometry9: SphereGeometry;
   private _plight: PointLight;
 
   private _uniforms: Record<string, UniformType | Texture>;
@@ -48,15 +55,45 @@ class Application {
   private _guiProperties: GUIProperties;
 
   constructor(canvas: HTMLCanvasElement) {
+    console.log("canvas creation");
     this._context = new GLContext(canvas);
     this._camera = new Camera();
 
-    // this._geometry = new TriangleGeometry();
-    this._geometry = new SphereGeometry(0.5, 32, 32);
+    this._geometry1 = new SphereGeometry(0.2, 32, 32);
+    this._geometry2 = new SphereGeometry(0.2, 32, 32);
+    this._geometry3 = new SphereGeometry(0.2, 32, 32);
+    this._geometry4 = new SphereGeometry(0.2, 32, 32);
+    this._geometry5 = new SphereGeometry(0.2, 32, 32);
+    this._geometry6 = new SphereGeometry(0.2, 32, 32);
+    this._geometry7 = new SphereGeometry(0.2, 32, 32);
+    this._geometry8 = new SphereGeometry(0.2, 32, 32);
+    this._geometry9 = new SphereGeometry(0.2, 32, 32);
+    //this._geometry = new TriangleGeometry();
+
     this._transformer = new Transform();
-    this._transformer.position = vec3.set(this._transformer.position, -0.5, 0, 0); 
+    vec3.set(this._transformer.position, -0.5, 0.5, 0);
+    this._geometry1.translate(this._transformer.combine());
+    vec3.set(this._transformer.position, 0, 0.5, 0);
+    this._geometry2.translate(this._transformer.combine());
+    vec3.set(this._transformer.position, 0.5, 0.5, 0);
+    this._geometry3.translate(this._transformer.combine());
+
+    vec3.set(this._transformer.position, -0.5, 0, 0);
+    this._geometry4.translate(this._transformer.combine());
+    vec3.set(this._transformer.position, 0.5, 0, 0);
+    this._geometry6.translate(this._transformer.combine());
+
+    vec3.set(this._transformer.position, -0.5, -0.5, 0);
+    this._geometry7.translate(this._transformer.combine());
+    vec3.set(this._transformer.position, 0, -0.5, 0);
+    this._geometry8.translate(this._transformer.combine());
+    vec3.set(this._transformer.position, 0.5, -0.5, 0);
+    this._geometry9.translate(this._transformer.combine());
+    //this._geometry.vec_translate(vec3.set(vec3.create(), -0.5, 0.5, 0));
+
     this._plight = new PointLight();
     this._plight.setPosition(1, 1, 1);
+
     this._uniforms = {
       'uMaterial.albedo': vec3.create(),
       'uModel.localToProjection': mat4.create(),
@@ -72,13 +109,22 @@ class Application {
     };
 
     this._createGUI();
+    console.log("gui created");
   }
 
   /**
    * Initializes the application.
    */
   async init() {
-    this._context.uploadGeometry(this._geometry);
+    this._context.uploadGeometry(this._geometry1);
+    this._context.uploadGeometry(this._geometry2);
+    this._context.uploadGeometry(this._geometry3);
+    this._context.uploadGeometry(this._geometry4);
+    this._context.uploadGeometry(this._geometry5);
+    this._context.uploadGeometry(this._geometry6);
+    this._context.uploadGeometry(this._geometry7);
+    this._context.uploadGeometry(this._geometry8);
+    this._context.uploadGeometry(this._geometry9);
     this._context.compileProgram(this._shader);
 
     // Example showing how to load a texture and upload it to GPU.
@@ -141,7 +187,15 @@ class Application {
     );
 
     // Draws the triangle.
-    this._context.draw(this._geometry, this._shader, this._uniforms);
+    this._context.draw(this._geometry1, this._shader, this._uniforms);
+    this._context.draw(this._geometry2, this._shader, this._uniforms);
+    this._context.draw(this._geometry3, this._shader, this._uniforms);
+    this._context.draw(this._geometry4, this._shader, this._uniforms);
+    this._context.draw(this._geometry5, this._shader, this._uniforms);
+    this._context.draw(this._geometry6, this._shader, this._uniforms);
+    this._context.draw(this._geometry7, this._shader, this._uniforms);
+    this._context.draw(this._geometry8, this._shader, this._uniforms);
+    this._context.draw(this._geometry9, this._shader, this._uniforms);
   }
 
   /**

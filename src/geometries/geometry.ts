@@ -1,3 +1,4 @@
+import { mat4, quat, vec3, vec4 } from 'gl-matrix';
 /**
  * @author {DavidPeicho}
  */
@@ -104,5 +105,33 @@ export class Geometry {
   /** WebGL mode to use when drawing the geometry. */
   public get mode(): number {
     return this._mode;
+  }
+
+  private precise(x: number) : string
+  {
+      return x.toPrecision(3);
+  }
+
+  public translate(matrix: mat4)
+  {
+      console.log("Salut, je suis la translate, il y'a " + this._positions.length / 3 + " points");
+      for (let i = 0; i < this._positions.length; i+=3) {
+        var vec : vec4 = vec4.transformMat4(vec4.create(), vec4.set(vec4.create(), this._positions[i], this._positions[i+1], this._positions[i+2], 1), matrix);
+        this._positions[i] = vec[0];
+        this._positions[i + 1] = vec[1];
+        this._positions[i + 2] = vec[2];
+        console.log("vec3(" + this.precise(this._positions[i]) + ", " + this.precise(this._positions[i+1]) + ", " + this.precise(this._positions[i+2]) + ")");
+      }
+  }
+
+  public vec_translate(vec: vec3)
+  {
+      console.log("Salut, je suis la translate ez, il y'a " + this._positions.length / 3 + " points");
+      for (let i = 0; i < this._positions.length; i+=3) {
+        this._positions[i] += vec[0];
+        this._positions[i + 1] += vec[1];
+        this._positions[i + 2] += vec[2];
+        console.log("vec3(" + this.precise(this._positions[i]) + ", " + this.precise(this._positions[i+1]) + ", " + this.precise(this._positions[i+2]) + ")");
+      }
   }
 }
