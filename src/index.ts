@@ -30,15 +30,7 @@ class Application {
   private _shader: PBRShader;
   //private _geometry: TriangleGeometry;
   private _transformer: Transform;
-  private _geometry1: SphereGeometry;
-  private _geometry2: SphereGeometry;
-  private _geometry3: SphereGeometry;
-  private _geometry4: SphereGeometry;
-  private _geometry5: SphereGeometry;
-  private _geometry6: SphereGeometry;
-  private _geometry7: SphereGeometry;
-  private _geometry8: SphereGeometry;
-  private _geometry9: SphereGeometry;
+  private _geometry: SphereGeometry;
   private _plight: PointLight;
 
   private _uniforms: Record<string, UniformType | Texture>;
@@ -59,46 +51,35 @@ class Application {
     this._context = new GLContext(canvas);
     this._camera = new Camera();
 
-    this._geometry1 = new SphereGeometry(0.2, 32, 32);
-    this._geometry2 = new SphereGeometry(0.2, 32, 32);
-    this._geometry3 = new SphereGeometry(0.2, 32, 32);
-    this._geometry4 = new SphereGeometry(0.2, 32, 32);
-    this._geometry5 = new SphereGeometry(0.2, 32, 32);
-    this._geometry6 = new SphereGeometry(0.2, 32, 32);
-    this._geometry7 = new SphereGeometry(0.2, 32, 32);
-    this._geometry8 = new SphereGeometry(0.2, 32, 32);
-    this._geometry9 = new SphereGeometry(0.2, 32, 32);
+    this._geometry = new SphereGeometry(0.15, 32, 32);
     //this._geometry = new TriangleGeometry();
 
-    this._transformer = new Transform();
-    vec3.set(this._transformer.position, -0.5, 0.5, 0);
-    this._geometry1.translate(this._transformer.combine());
-    vec3.set(this._transformer.position, 0, 0.5, 0);
-    this._geometry2.translate(this._transformer.combine());
-    vec3.set(this._transformer.position, 0.5, 0.5, 0);
-    this._geometry3.translate(this._transformer.combine());
-
-    vec3.set(this._transformer.position, -0.5, 0, 0);
-    this._geometry4.translate(this._transformer.combine());
-    vec3.set(this._transformer.position, 0.5, 0, 0);
-    this._geometry6.translate(this._transformer.combine());
-
-    vec3.set(this._transformer.position, -0.5, -0.5, 0);
-    this._geometry7.translate(this._transformer.combine());
-    vec3.set(this._transformer.position, 0, -0.5, 0);
-    this._geometry8.translate(this._transformer.combine());
-    vec3.set(this._transformer.position, 0.5, -0.5, 0);
-    this._geometry9.translate(this._transformer.combine());
     //this._geometry.vec_translate(vec3.set(vec3.create(), -0.5, 0.5, 0));
 
     this._plight = new PointLight();
-    this._plight.setPosition(1, 1, 1);
+    this._plight.setPosition(0, 1, 2);
+
+    this._transformer = new Transform();
 
     this._uniforms = {
       'uMaterial.albedo': vec3.create(),
+      'uMaterial.roughness': 0.25,
+      'uMaterial.metallic': 0.25,
       'uModel.localToProjection': mat4.create(),
-      'uLight.position': this._plight.positionWS,
-      // 'uLight.color': vec3.create()
+      'uCamera.position': vec3.create(),
+      'translationMat': mat4.create(),
+      /*
+      'uLight[0].position': vec3.create(),
+      'uLight[0].intensity': 1,
+      'uLight[1].position': vec3.create(),
+      'uLight[1].intensity': 0.8,
+      */
+      /*
+      'uLight[2].position': vec3.create(),
+      'uLight[2].intensity': 0.5,
+      'uLight[3].position': vec3.create(),
+      'uLight[3].intensity': 0.5,
+      */
     };
 
     this._shader = new PBRShader();
@@ -116,15 +97,7 @@ class Application {
    * Initializes the application.
    */
   async init() {
-    this._context.uploadGeometry(this._geometry1);
-    this._context.uploadGeometry(this._geometry2);
-    this._context.uploadGeometry(this._geometry3);
-    this._context.uploadGeometry(this._geometry4);
-    this._context.uploadGeometry(this._geometry5);
-    this._context.uploadGeometry(this._geometry6);
-    this._context.uploadGeometry(this._geometry7);
-    this._context.uploadGeometry(this._geometry8);
-    this._context.uploadGeometry(this._geometry9);
+    this._context.uploadGeometry(this._geometry);
     this._context.compileProgram(this._shader);
 
     // Example showing how to load a texture and upload it to GPU.
@@ -169,6 +142,17 @@ class Application {
     camera.setParameters(aspect);
     camera.update();
 
+    vec3.set(
+      this._uniforms['uCamera.position'] as vec3,
+      camera.transform.position[0],
+      camera.transform.position[1],
+      camera.transform.position[2]
+    );
+
+
+    //vec3.set(this._uniforms['uLights[0].position'] as vec3, 1.0, 0.0, 5.0);
+    //vec3.set(this._uniforms['uLights[1].position'] as vec3, 2.0, 1.0, 5.0);
+
     const props = this._guiProperties;
 
     // Set the color from the GUI into the uniform list.
@@ -181,21 +165,51 @@ class Application {
     // Sets the viewProjection matrix.
     // **Note**: if you want to modify the position of the geometry, you will
     // need to take the matrix of the mesh into account here.
+    /*
     mat4.copy(
       this._uniforms['uModel.localToProjection'] as mat4,
       camera.localToProjection
     );
+    */
+
 
     // Draws the triangle.
-    this._context.draw(this._geometry1, this._shader, this._uniforms);
-    this._context.draw(this._geometry2, this._shader, this._uniforms);
-    this._context.draw(this._geometry3, this._shader, this._uniforms);
-    this._context.draw(this._geometry4, this._shader, this._uniforms);
-    this._context.draw(this._geometry5, this._shader, this._uniforms);
-    this._context.draw(this._geometry6, this._shader, this._uniforms);
-    this._context.draw(this._geometry7, this._shader, this._uniforms);
-    this._context.draw(this._geometry8, this._shader, this._uniforms);
-    this._context.draw(this._geometry9, this._shader, this._uniforms);
+    const roughnesses = [0.01, 0.25, 0.5, 0.75, 1.0]; 
+    const metalness = [1.0, 0.75, 0.5, 0.25, 0.01];
+    for (let y = -2; y < 3; y++)
+    {
+      for (let x = -2; x < 3; x++)
+      {
+        let translationMat = mat4.fromTranslation(mat4.create(), vec3.fromValues(0.3 * x, 0.4 * y, 0));
+        mat4.multiply(this._uniforms['uModel.localToProjection'] as mat4,
+          translationMat,
+          this._camera.localToProjection);
+        this._uniforms['translationMat'] = translationMat;
+        this._uniforms['uMaterial.roughness'] = roughnesses[x + 2];
+        this._uniforms['uMaterial.metallic'] = metalness[y + 2]
+        this._context.draw(this._geometry, this._shader, this._uniforms);
+      }
+    }
+
+    /*
+    this._uniforms['uMaterial.roughness'] = 0.25;
+    this._context.draw(this._geometry, this._shader, this._uniforms);
+
+    mat4.multiply(this._uniforms['uModel.localToProjection'] as mat4,
+      mat4.fromTranslation(mat4.create(), vec3.fromValues(0.5, -0.5, 0)),
+      this._camera.localToProjection
+    );
+
+    this._uniforms['uMaterial.roughness'] = 0.5;
+    
+    vec3.set(this._transformer.position, 0.0, 0.5, 0.0);
+    this._geometry.transform(this._transformer.combine());
+    
+    this._context.draw(this._geometry, this._shader, this._uniforms);
+
+    vec3.set(this._transformer.position, 0.0, 0.0, 0.0);
+    this._geometry.transform(this._transformer.combine());
+    */
   }
 
   /**
