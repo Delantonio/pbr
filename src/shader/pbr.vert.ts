@@ -37,6 +37,6 @@ main()
   gl_Position = uModel.localToProjection * positionLocal;
   vNormalWS = in_normal;
   vec4 WStoLocal = gl_Position * transformMat;
-  vPosition = vec3(WStoLocal[0], WStoLocal[1], WStoLocal[2]);
+  vPosition = WStoLocal.xyz;
 }
 `;

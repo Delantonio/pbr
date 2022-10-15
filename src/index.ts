@@ -174,8 +174,9 @@ class Application {
 
 
     // Draws the triangle.
-    const roughnesses = [0.01, 0.25, 0.5, 0.75, 1.0]; 
-    const metalness = [1.0, 0.75, 0.5, 0.25, 0.01];
+    const roughnesses = [0.05, 0.25, 0.5, 0.75, 1.0]; 
+    //const metalness = [1.0, 0.75, 0.5, 0.25, 0.05];
+    const metalness = [0.05, 0.25, 0.5, 0.75, 1.0];
     for (let y = -2; y < 3; y++)
     {
       for (let x = -2; x < 3; x++)
