@@ -1,10 +1,11 @@
 export default `
 precision highp float;
 #define M_PI 3.1415926535897932384626433832795
-
+#define NB_LIGHTS 4
 
 in vec3 vNormalWS;
 in vec3 vPosition;
+in vec3 pLights[NB_LIGHTS];
 out vec4 outFragColor;
 
 struct Material
@@ -46,6 +47,13 @@ float D_GGX(float NoH, float roughness) {
   float a = NoH * roughness;
   float k = roughness / (1.0 - NoH * NoH + a * a);
   return k * k * (1.0 / M_PI);
+}
+float DGGX(float NoH, float roughness)
+{
+  float a2 = roughness * roughness;
+  float NoH2 = NoH * NoH;
+  float denom = NoH2 * (a2 - 1.0) + 1.0;
+  return a2 / (M_PI * denom * denom);
 }
 
 // Geometric Shadowing (micro-facets)
@@ -126,6 +134,7 @@ main()
   for (int i = 0; i < NB_LIGHTS; i++)
   {
     vec3 lightPos = lights[i];
+    //vec3 lightPos = pLights[i];
     vec3 lightDir = normalize(lightPos - vPosition);
     vec3 halfway = normalize(lightDir + eyeDir);
 
@@ -133,7 +142,7 @@ main()
     float NoH = clamp(dot(normal, halfway), 0.0, 1.0);
     float LoH = clamp(dot(lightDir, halfway), 0.0, 1.0);
 
-    float D = D_GGX(NoH, roughness);
+    float D = DGGX(NoH, roughness);
     vec3 kS = normalize(FresnelSchlick(LoH, f0));
     float G = GeometrySmith(normal, eyeDir, lightDir, roughness);
 
@@ -141,10 +150,13 @@ main()
 
     vec3 CookTorranceGGXSpecular = DFG / (4.0 * NoE * NoL);
     vec3 LambertianDiffuse = (1.0 - kS) * LambertianBRDF() * albedo;
+    vec3 DisneyDiffuse = (1.0 - kS) * Fd_Burley(NoV, NoL, LoH, roughness) * albedo;
     LambertianDiffuse *= (1.0 - metallic);
 
-    irradiance += (LambertianDiffuse + CookTorranceGGXSpecular) * 1.0 * NoL;
+    //irradiance += (LambertianDiffuse + CookTorranceGGXSpecular) * 1.0 * NoL;
     //irradiance += D / 4.0;
+    irradiance += (kS * G * D / (4.0 * NoE)  + LambertianDiffuse) * NoL * 1.5;
+    //irradiance += vPosition;
   }
 
   // **DO NOT** forget to apply gamma correction as last step.
