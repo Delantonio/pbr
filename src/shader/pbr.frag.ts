@@ -27,7 +27,6 @@ struct Camera
   vec3 position;
 };
 
-//#define NB_LIGHTS 4
 uniform Material uMaterial;
 //uniform Light uLights[NB_LIGHTS]; 
 uniform Camera uCamera;
@@ -57,20 +56,11 @@ float DGGX(float NoH, float roughness)
 }
 
 // Geometric Shadowing (micro-facets)
-float GeometrySchlickGGX(float NdotV, float k)
+float G_GGX(float NoV, float NoL, float k)
 {
-    float nom   = NdotV;
-    float denom = NdotV * (1.0 - k) + k;
-    return nom / denom;
-}
-  
-float GeometrySmith(vec3 N, vec3 V, vec3 L, float k)
-{
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
-    float ggx1 = GeometrySchlickGGX(NdotV, k);
-    float ggx2 = GeometrySchlickGGX(NdotL, k);
-    return ggx1 * ggx2;
+    float obstruction = NoV / (NoV * (1.0 - k) + k) ;
+    float shadowing = NoL / (NoL * (1.0 - k) + k) ;
+    return obstruction * shadowing;
 }
 
 // using f90 = 1.0
@@ -111,53 +101,67 @@ main()
   vec3 albedo = sRGBToLinear(vec4(uMaterial.albedo, 1.0)).rgb;
 
   #define NB_LIGHTS 4
+  //vec3 lights[NB_LIGHTS] = vec3[NB_LIGHTS](
+  //  vec3(3.0, 3.0, 5.0),
+  //  vec3(-3.0, -3.0, 5.0)
+  //);
   vec3 lights[NB_LIGHTS] = vec3[NB_LIGHTS](
-    vec3(-3.0, 3.0, 5.0)
+    vec3(-3.0, 3.0, 2.0)
     ,
-    vec3(-3.0, -3.0, 5.0),
-    vec3(3.0, 3.0, 5.0),
-    vec3(3.0, -3.0, 5.0)
+    vec3(-3.0, -3.0, 2.0),
+    vec3(3.0, 3.0, 2.0),
+    vec3(3.0, -3.0, 2.0)
     );
 
-  float roughness = uMaterial.roughness * uMaterial.roughness;
-  vec3 metallic = vec3(uMaterial.metallic);
+  //float roughness = uMaterial.roughness * uMaterial.roughness;
+  float roughness = pow(clamp(uMaterial.roughness, 0.05, 1.0), 2.0);
+  //vec3 metallic = vec3(clamp(uMaterial.metallic, 0.05, 1.0));
+  float metallic = clamp(uMaterial.metallic, 0.05, 1.0);
 
-  vec3 f0 = mix(metallic, albedo, 0.04);
+  vec3 f0 = mix(vec3(0.04), albedo, metallic);
 
   vec3 eyeDir = normalize(uCamera.position - vPosition);
   vec3 normal = normalize(vNormalWS);
 
-  float NoV = clamp(dot(normal, vPosition), 0.0, 1.0);
-  float NoE = clamp(dot(normal, eyeDir), 0.0, 1.0);
+  float NoV = clamp(dot(normal, vPosition), 0.001, 1.0);
+  float NoE = clamp(dot(normal, eyeDir), 0.001, 1.0);
 
   vec3 irradiance = vec3(0.0);
   for (int i = 0; i < NB_LIGHTS; i++)
   {
     vec3 lightPos = lights[i];
-    //vec3 lightPos = pLights[i];
     vec3 lightDir = normalize(lightPos - vPosition);
     vec3 halfway = normalize(lightDir + eyeDir);
 
-    float NoL = clamp(dot(normal, lightDir), 0.0, 1.0);
-    float NoH = clamp(dot(normal, halfway), 0.0, 1.0);
-    float LoH = clamp(dot(lightDir, halfway), 0.0, 1.0);
+    float NoL = clamp(dot(normal, lightDir), 0.001, 1.0);
+    float NoH = clamp(dot(normal, halfway), 0.001, 1.0);
+    float EoH = clamp(dot(eyeDir, halfway), 0.001, 1.0);
 
-    float D = DGGX(NoH, roughness);
-    vec3 kS = normalize(FresnelSchlick(LoH, f0));
-    float G = GeometrySmith(normal, eyeDir, lightDir, roughness);
+    float D = D_GGX(NoH, roughness);
+    vec3 kS = FresnelSchlick(EoH, f0);
+    float G = G_GGX(NoE, NoL, roughness);
 
     vec3 DFG = (D * G) * kS;
 
     vec3 CookTorranceGGXSpecular = DFG / (4.0 * NoE * NoL);
     vec3 LambertianDiffuse = (1.0 - kS) * LambertianBRDF() * albedo;
-    vec3 DisneyDiffuse = (1.0 - kS) * Fd_Burley(NoV, NoL, LoH, roughness) * albedo;
+    //vec3 DisneyDiffuse = (1.0 - kS) * Fd_Burley(NoV, NoL, LoH, roughness) * albedo;
     LambertianDiffuse *= (1.0 - metallic);
 
-    //irradiance += (LambertianDiffuse + CookTorranceGGXSpecular) * 1.0 * NoL;
-    //irradiance += D / 4.0;
-    irradiance += (kS * G * D / (4.0 * NoE)  + LambertianDiffuse) * NoL * 1.5;
+    irradiance += (LambertianDiffuse + CookTorranceGGXSpecular) * 1.0 * NoL;
+    //irradiance += DFG / (4.0 * NoE * NoL);
+    //irradiance += G / 2.0;
+    //irradiance += (kS * G * D / (4.0 * NoE)  + LambertianDiffuse) * NoL * 2.0;
     //irradiance += vPosition;
   }
+  //vec3 nul = vec3(0.0, 0.0, 0.0);
+  //albedo = nul;
+  //if (vPosition.x <= nul.x)
+  //  albedo += vec3(0.5, 0.0, 0.0);
+  //else if (vPosition.y <= nul.y)
+  //  albedo += vec3(0.0, 0.5, 0.0);
+  //else if (vPosition.z <= nul.z)
+  //  albedo += vec3(0.0, 0.0, 0.5);
 
   // **DO NOT** forget to apply gamma correction as last step.
   outFragColor.rgba = LinearTosRGB(vec4(irradiance, 1.0));

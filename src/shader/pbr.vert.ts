@@ -29,17 +29,35 @@ struct Model
   mat4 localToProjection;
 };
 
+struct Offset
+{
+  float x;
+  float y;
+};
+
 uniform Model uModel;
-uniform mat4 transformMat;
+uniform mat4 translationMat;
+uniform Offset uOffset;
 
 void
 main()
 {
   vec4 positionLocal = vec4(in_position, 1.0);
+
+  //vec3 offset = vec3(uOffset.x, uOffset.y, 0.0);
+  //vec4 positionLocal = vec4(in_position + offset, 1.0);
+
   gl_Position = uModel.localToProjection * positionLocal;
+  //vNormalWS = (transformMat * vec4(in_normal, 0.0)).xyz;
   vNormalWS = in_normal;
-  vec4 WStoLocal = gl_Position * transformMat;
-  vPosition = WStoLocal.xyz;
+  vPosition = (translationMat * positionLocal).xyz;
+  //vPosition = positionLocal.xyz;
+
+
+
+
+
+
   //vPosition = gl_Position.xyz;
   //vec4 lights[NB_LIGHTS] = vec4[NB_LIGHTS](
   //  vec4(-3.0, 3.0, 5.0, 1.0)

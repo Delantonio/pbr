@@ -31,6 +31,7 @@ class Application {
   //private _geometry: TriangleGeometry;
   private _transformer: Transform;
   private _geometry: SphereGeometry;
+  private i = 0;
   private _plight: PointLight;
 
   private _uniforms: Record<string, UniformType | Texture>;
@@ -142,11 +143,9 @@ class Application {
     camera.setParameters(aspect);
     camera.update();
 
-    vec3.set(
+    vec3.copy(
       this._uniforms['uCamera.position'] as vec3,
-      camera.transform.position[0],
-      camera.transform.position[1],
-      camera.transform.position[2]
+      camera.transform.position,
     );
 
 
@@ -165,32 +164,56 @@ class Application {
     // Sets the viewProjection matrix.
     // **Note**: if you want to modify the position of the geometry, you will
     // need to take the matrix of the mesh into account here.
-    /*
+
     mat4.copy(
       this._uniforms['uModel.localToProjection'] as mat4,
       camera.localToProjection
     );
-    */
 
 
     // Draws the triangle.
-    const roughnesses = [0.05, 0.25, 0.5, 0.75, 1.0]; 
+    const roughnesses = [0.0, 0.25, 0.5, 0.75, 1.0]; 
     //const metalness = [1.0, 0.75, 0.5, 0.25, 0.05];
-    const metalness = [0.05, 0.25, 0.5, 0.75, 1.0];
+    const metalness = [0.0, 0.25, 0.5, 0.75, 1.0];
     for (let y = -2; y < 3; y++)
     {
       for (let x = -2; x < 3; x++)
       {
-        let translationMat = mat4.fromTranslation(mat4.create(), vec3.fromValues(0.3 * x, 0.4 * y, 0));
+        var translationMat = mat4.fromTranslation(mat4.create(), vec3.fromValues(0.25 * x, 0.4 * y, 0));
+
         mat4.multiply(this._uniforms['uModel.localToProjection'] as mat4,
           translationMat,
           this._camera.localToProjection);
+
         this._uniforms['translationMat'] = translationMat;
+
+
+
+
+
+
+
+        if (this.i == 0)
+        {
+        console.log("================");
+        console.log("translationMat " + y + " " + x + ":   " + translationMat[0] + " " + translationMat[1] + " " + translationMat[2] + " " + translationMat[3]);
+        console.log("translationMat " + y + " " + x + ":   " + translationMat[4] + " " + translationMat[5] + " " + translationMat[6] + " " + translationMat[7]);
+        console.log("translationMat " + y + " " + x + ":   " + translationMat[8] + " " + translationMat[9] + " " + translationMat[10] + " " + translationMat[11]);
+        console.log("translationMat " + y + " " + x + ":   " + translationMat[12] + " " + translationMat[13] + " " + translationMat[14] + " " + translationMat[15]);
+        console.log("================");
+        }
+
         this._uniforms['uMaterial.roughness'] = roughnesses[x + 2];
         this._uniforms['uMaterial.metallic'] = metalness[y + 2]
+
+        //this._uniforms['uOffset.x'] = x * 0.3;
+        //this._uniforms['uOffset.y'] = y * 0.3;
+
         this._context.draw(this._geometry, this._shader, this._uniforms);
       }
     }
+    this.i = 1;
+
 
     /*
     this._uniforms['uMaterial.roughness'] = 0.25;
