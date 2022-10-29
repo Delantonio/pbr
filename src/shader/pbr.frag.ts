@@ -5,8 +5,18 @@ precision highp float;
 
 in vec3 vNormalWS;
 in vec3 vPosition;
-in vec3 pLights[NB_LIGHTS];
+//in vec3 pLights[NB_LIGHTS];
 out vec4 outFragColor;
+
+const float RECIPROCAL_PI = 0.31830988618;
+const float RECIPROCAL_PI2 = 0.15915494;
+
+vec2 cartesianToPolar(vec3 n) {
+    vec2 uv;
+    uv.x = atan(n.z, n.x) * RECIPROCAL_PI2 + 0.5;
+    uv.y = asin(n.y) * RECIPROCAL_PI + 0.5;
+    return uv;
+}
 
 struct Material
 {
@@ -30,6 +40,8 @@ struct Camera
 uniform Material uMaterial;
 //uniform Light uLights[NB_LIGHTS]; 
 uniform Camera uCamera;
+uniform sampler2D diffuseTex;
+uniform bool diffuseIBL;
 
 // From three.js
 vec4 sRGBToLinear( in vec4 value ) {
@@ -101,10 +113,6 @@ main()
   vec3 albedo = sRGBToLinear(vec4(uMaterial.albedo, 1.0)).rgb;
 
   #define NB_LIGHTS 4
-  //vec3 lights[NB_LIGHTS] = vec3[NB_LIGHTS](
-  //  vec3(3.0, 3.0, 5.0),
-  //  vec3(-3.0, -3.0, 5.0)
-  //);
   vec3 lights[NB_LIGHTS] = vec3[NB_LIGHTS](
     vec3(-3.0, 3.0, 2.0)
     ,
@@ -122,6 +130,8 @@ main()
 
   vec3 eyeDir = normalize(uCamera.position - vPosition);
   vec3 normal = normalize(vNormalWS);
+
+  vec3 color = texture(diffuseTex, cartesianToPolar(normal)).rgb;
 
   float NoV = clamp(dot(normal, vPosition), 0.001, 1.0);
   float NoE = clamp(dot(normal, eyeDir), 0.001, 1.0);
@@ -149,24 +159,13 @@ main()
     LambertianDiffuse *= (1.0 - metallic);
 
     irradiance += (LambertianDiffuse + CookTorranceGGXSpecular) * 1.0 * NoL;
-    //irradiance += DFG / (4.0 * NoE * NoL);
-    //irradiance += G / 2.0;
-    //irradiance += (kS * G * D / (4.0 * NoE)  + LambertianDiffuse) * NoL * 2.0;
-    //irradiance += vPosition;
   }
-  //vec3 nul = vec3(0.0, 0.0, 0.0);
-  //albedo = nul;
-  //if (vPosition.x <= nul.x)
-  //  albedo += vec3(0.5, 0.0, 0.0);
-  //else if (vPosition.y <= nul.y)
-  //  albedo += vec3(0.0, 0.5, 0.0);
-  //else if (vPosition.z <= nul.z)
-  //  albedo += vec3(0.0, 0.0, 0.5);
+
+  if (diffuseIBL)
+    outFragColor.rgba = LinearTosRGB(vec4(color, 1.0));
+  else
+    outFragColor.rgba = LinearTosRGB(vec4(irradiance, 1.0));
 
   // **DO NOT** forget to apply gamma correction as last step.
-  outFragColor.rgba = LinearTosRGB(vec4(irradiance, 1.0));
-
-  // To debug normals
-  //outFragColor.rgba = LinearTosRGB(vec4(vNormalWS, 1.0));
 }
 `;

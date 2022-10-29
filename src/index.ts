@@ -12,6 +12,7 @@ import { UniformType } from './types';
 
 interface GUIProperties {
   albedo: number[];
+  diffuse: boolean;
 }
 
 /**
@@ -37,6 +38,7 @@ class Application {
   private _uniforms: Record<string, UniformType | Texture>;
 
   private _textureExample: Texture2D<HTMLElement> | null;
+    private _textureDiffuse: Texture2D<HTMLElement> | null;
 
   private _camera: Camera;
 
@@ -69,25 +71,16 @@ class Application {
       'uModel.localToProjection': mat4.create(),
       'uCamera.position': vec3.create(),
       'translationMat': mat4.create(),
-      /*
-      'uLight[0].position': vec3.create(),
-      'uLight[0].intensity': 1,
-      'uLight[1].position': vec3.create(),
-      'uLight[1].intensity': 0.8,
-      */
-      /*
-      'uLight[2].position': vec3.create(),
-      'uLight[2].intensity': 0.5,
-      'uLight[3].position': vec3.create(),
-      'uLight[3].intensity': 0.5,
-      */
+      'diffuseIBL': true,
     };
 
     this._shader = new PBRShader();
     this._textureExample = null;
+    this._textureDiffuse = null;
 
     this._guiProperties = {
-      albedo: [255, 255, 255]
+      albedo: [255, 255, 255],
+      diffuseIBL: true
     };
 
     this._createGUI();
@@ -105,10 +98,17 @@ class Application {
     this._textureExample = await Texture2D.load(
       'assets/ggx-brdf-integrated.png'
     );
+    this._textureDiffuse = await Texture2D.load(
+        'assets/env/Alexs_Apt_2k-diffuse-RGBM.png'
+        );
     if (this._textureExample !== null) {
       this._context.uploadTexture(this._textureExample);
       // You can then use it directly as a uniform:
       // ```uniforms.myTexture = this._textureExample;```
+    }
+    if (this._textureDiffuse !== null) {
+      this._context.uploadTexture(this._textureDiffuse);
+      this._uniforms['diffuseTex'] = this._textureDiffuse;
     }
   }
 
@@ -161,10 +161,13 @@ class Application {
       props.albedo[1] / 255,
       props.albedo[2] / 255
     );
+
+    this._uniforms['diffuseIBL'] = false;
+
+
     // Sets the viewProjection matrix.
     // **Note**: if you want to modify the position of the geometry, you will
     // need to take the matrix of the mesh into account here.
-
     mat4.copy(
       this._uniforms['uModel.localToProjection'] as mat4,
       camera.localToProjection
@@ -187,22 +190,6 @@ class Application {
 
         this._uniforms['translationMat'] = translationMat;
 
-
-
-
-
-
-
-        if (this.i == 0)
-        {
-        console.log("================");
-        console.log("translationMat " + y + " " + x + ":   " + translationMat[0] + " " + translationMat[1] + " " + translationMat[2] + " " + translationMat[3]);
-        console.log("translationMat " + y + " " + x + ":   " + translationMat[4] + " " + translationMat[5] + " " + translationMat[6] + " " + translationMat[7]);
-        console.log("translationMat " + y + " " + x + ":   " + translationMat[8] + " " + translationMat[9] + " " + translationMat[10] + " " + translationMat[11]);
-        console.log("translationMat " + y + " " + x + ":   " + translationMat[12] + " " + translationMat[13] + " " + translationMat[14] + " " + translationMat[15]);
-        console.log("================");
-        }
-
         this._uniforms['uMaterial.roughness'] = roughnesses[x + 2];
         this._uniforms['uMaterial.metallic'] = metalness[y + 2]
 
@@ -213,27 +200,6 @@ class Application {
       }
     }
     this.i = 1;
-
-
-    /*
-    this._uniforms['uMaterial.roughness'] = 0.25;
-    this._context.draw(this._geometry, this._shader, this._uniforms);
-
-    mat4.multiply(this._uniforms['uModel.localToProjection'] as mat4,
-      mat4.fromTranslation(mat4.create(), vec3.fromValues(0.5, -0.5, 0)),
-      this._camera.localToProjection
-    );
-
-    this._uniforms['uMaterial.roughness'] = 0.5;
-    
-    vec3.set(this._transformer.position, 0.0, 0.5, 0.0);
-    this._geometry.transform(this._transformer.combine());
-    
-    this._context.draw(this._geometry, this._shader, this._uniforms);
-
-    vec3.set(this._transformer.position, 0.0, 0.0, 0.0);
-    this._geometry.transform(this._transformer.combine());
-    */
   }
 
   /**
@@ -250,6 +216,7 @@ class Application {
   private _createGUI(): GUI {
     const gui = new GUI();
     gui.addColor(this._guiProperties, 'albedo');
+    gui.add(this._guiProperties, 'diffuseIBL');
     return gui;
   }
 }
