@@ -41,7 +41,12 @@ uniform Material uMaterial;
 //uniform Light uLights[NB_LIGHTS]; 
 uniform Camera uCamera;
 uniform sampler2D diffuseTex;
+uniform sampler2D specularTex;
 uniform bool diffuseIBL;
+uniform bool specularIBL;
+
+uniform bool burleyDiffuse;
+uniform bool orenNayarDiffuse;
 
 // From three.js
 vec4 sRGBToLinear( in vec4 value ) {
@@ -51,6 +56,10 @@ vec4 sRGBToLinear( in vec4 value ) {
 // From three.js
 vec4 LinearTosRGB( in vec4 value ) {
 	return vec4( mix( pow( value.rgb, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ), value.rgb * 12.92, vec3( lessThanEqual( value.rgb, vec3( 0.0031308 ) ) ) ), value.a );
+}
+
+vec4 RGBMtoRGB( in vec4 rgbm_color) {
+  return vec4(rgbm_color.rgb * rgbm_color.a * 5.0, 1.0);
 }
 
 // Normal Distribution Function (NDF) to estimate the specular component
@@ -102,9 +111,41 @@ float Fd_Burley(float NoV, float NoL, float LoH, float roughness) {
     float viewScatter = F_Schlick(NoV, 1.0, f90);
     return lightScatter * viewScatter * (1.0 / M_PI);
 }
+
+vec3 Fd_OrenNayar(float LoE, float NoE, float NoL, float roughness, vec3 albedo)
+{
+  float s = LoE - NoL * NoE;
+  float t = mix(1.0, max(NoL, NoE), step(0.0, s));
+
+  vec3 A = 1.0 + roughness * (albedo / (roughness + 0.13) + 0.5 / (roughness + 0.33));
+  float B = 0.45 * roughness / (roughness + 0.09);
+
+  return albedo * max(0.0, NoL) * (A + B * s / t) / M_PI;
+}
 // ** ** //
 
+// ** SPECULAR IBL ** //
+vec2 roughness_uv(float roughness_level, vec2 uv)
+{
+  float offset = pow(2.0, roughness_level); // Roughness offset
+  vec2 new_uv = vec2(0.0);
+  new_uv.x = uv.x / offset;
+  new_uv.y = (uv.y / (offset * 2.0)) + 1.0 - (1.0 / offset);
+  return new_uv;
+}
 
+vec4 IBL_specular_mix(float roughness, vec2 uv, sampler2D specularTex)
+{
+  float low_level = floor(roughness * 5.0);
+  float high_level = floor(roughness * 5.0) + 1.0;
+
+  vec2 uv_low = roughness_uv(low_level, uv);
+  vec2 uv_high = roughness_uv(high_level, uv);
+  vec4 rgbm_specular_low = texture(specularTex, uv_low);
+  vec4 rgbm_specular_high = texture(specularTex, uv_high);
+  return mix(rgbm_specular_low, rgbm_specular_high, roughness * 5.0 - low_level);
+}
+// ** ** //
 
 void
 main()
@@ -121,31 +162,31 @@ main()
     vec3(3.0, -3.0, 2.0)
     );
 
-  //float roughness = uMaterial.roughness * uMaterial.roughness;
-  float roughness = pow(clamp(uMaterial.roughness, 0.05, 1.0), 2.0);
-  //vec3 metallic = vec3(clamp(uMaterial.metallic, 0.05, 1.0));
-  float metallic = clamp(uMaterial.metallic, 0.05, 1.0);
+  float roughness = uMaterial.roughness * uMaterial.roughness;
+  //float roughness = pow(clamp(uMaterial.roughness, 0.05, 1.0), 2.0);
+  float metallic = uMaterial.metallic;
+  //float metallic = clamp(uMaterial.metallic, 0.05, 1.0);
 
   vec3 f0 = mix(vec3(0.04), albedo, metallic);
 
   vec3 eyeDir = normalize(uCamera.position - vPosition);
   vec3 normal = normalize(vNormalWS);
 
-  vec3 color = texture(diffuseTex, cartesianToPolar(normal)).rgb;
-
   float NoV = clamp(dot(normal, vPosition), 0.001, 1.0);
   float NoE = clamp(dot(normal, eyeDir), 0.001, 1.0);
 
   vec3 irradiance = vec3(0.0);
+  vec3 gkS = vec3(0.0);
   for (int i = 0; i < NB_LIGHTS; i++)
   {
     vec3 lightPos = lights[i];
     vec3 lightDir = normalize(lightPos - vPosition);
     vec3 halfway = normalize(lightDir + eyeDir);
 
-    float NoL = clamp(dot(normal, lightDir), 0.001, 1.0);
-    float NoH = clamp(dot(normal, halfway), 0.001, 1.0);
-    float EoH = clamp(dot(eyeDir, halfway), 0.001, 1.0);
+    //float NoL = clamp(dot(normal, lightDir), 0.01, 1.0);
+    float NoL = clamp(dot(normal, lightDir), 1e-10, 1.0);
+    float NoH = clamp(dot(normal, halfway), 0.0001, 1.0);
+    float EoH = clamp(dot(eyeDir, halfway), 0.0001, 1.0);
 
     float D = D_GGX(NoH, roughness);
     vec3 kS = FresnelSchlick(EoH, f0);
@@ -155,16 +196,45 @@ main()
 
     vec3 CookTorranceGGXSpecular = DFG / (4.0 * NoE * NoL);
     vec3 LambertianDiffuse = (1.0 - kS) * LambertianBRDF() * albedo;
-    //vec3 DisneyDiffuse = (1.0 - kS) * Fd_Burley(NoV, NoL, LoH, roughness) * albedo;
     LambertianDiffuse *= (1.0 - metallic);
 
-    irradiance += (LambertianDiffuse + CookTorranceGGXSpecular) * 1.0 * NoL;
+    float LoH = clamp(dot(lightDir, halfway), 0.0001, 1.0);
+    vec3 DisneyDiffuse = (1.0 - kS) * Fd_Burley(NoV, NoL, LoH, roughness) * albedo;
+    DisneyDiffuse *= (1.0 - metallic);
+
+    float LoE = clamp(dot(eyeDir, lightDir),  0.0001, 1.0);
+    vec3 ONDiffuse = (1.0 - kS) * Fd_OrenNayar(LoE, NoE, NoL, roughness, albedo);
+    ONDiffuse *= (1.0 - metallic);
+
+    if (burleyDiffuse)
+      irradiance += (DisneyDiffuse + CookTorranceGGXSpecular) * 1.0 * NoL;
+    else if (orenNayarDiffuse)
+      irradiance += (ONDiffuse +  CookTorranceGGXSpecular) * 1.0 * NoL;
+    else
+      irradiance += (LambertianDiffuse + CookTorranceGGXSpecular) * 1.0 * NoL;
+    gkS += kS / 4.0;
   }
 
-  if (diffuseIBL)
-    outFragColor.rgba = LinearTosRGB(vec4(color, 1.0));
-  else
+  if (!diffuseIBL && !specularIBL)
     outFragColor.rgba = LinearTosRGB(vec4(irradiance, 1.0));
+  else
+  {
+    vec3 IBL = vec3(0.0);
+    if (diffuseIBL)
+    {
+      vec4 rgbm_diffuse = texture(diffuseTex, cartesianToPolar(normal));
+      vec3 IBL_diffuse = (1.0 - metallic) * RGBMtoRGB(rgbm_diffuse).rgb * albedo;
+      IBL += IBL_diffuse;
+    }
+    if (specularIBL)
+    {
+      vec3 reflected_ray = reflect(-eyeDir, normal);
+      vec2 uv = cartesianToPolar(reflected_ray);
+      vec3 IBL_specular = RGBMtoRGB(IBL_specular_mix(roughness, uv, specularTex)).rgb;
+      IBL += gkS * IBL_specular;
+    }
+    outFragColor.rgba = LinearTosRGB(vec4(IBL, 1.0));
+  }
 
   // **DO NOT** forget to apply gamma correction as last step.
 }

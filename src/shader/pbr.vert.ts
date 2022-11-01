@@ -37,7 +37,7 @@ struct Offset
 
 uniform Model uModel;
 uniform mat4 translationMat;
-uniform Offset uOffset;
+uniform Offset uOffset; // offset implementation to test the difference with translationMatrix
 
 void
 main()
@@ -48,33 +48,7 @@ main()
   //vec4 positionLocal = vec4(in_position + offset, 1.0);
 
   gl_Position = uModel.localToProjection * positionLocal;
-  //vNormalWS = (transformMat * vec4(in_normal, 0.0)).xyz;
   vNormalWS = in_normal;
   vPosition = (translationMat * positionLocal).xyz;
-  //vPosition = positionLocal.xyz;
-
-
-
-
-
-
-  //vPosition = gl_Position.xyz;
-  //vec4 lights[NB_LIGHTS] = vec4[NB_LIGHTS](
-  //  vec4(-3.0, 3.0, 5.0, 1.0)
-  //  ,
-  //  vec4(-3.0, -3.0, 5.0, 1.0),
-  //  vec4(3.0, 3.0, 5.0, 1.0),
-  //  vec4(3.0, -3.0, 5.0, 1.0)
-  //  );
-  //for (int i = 0; i < NB_LIGHTS; i++)
-  //{
-  //  lights[i] = lights[i] * transformMat;
-  //}
-  //pLights = vec3[NB_LIGHTS](
-  //  lights[0].xyz,
-  //  lights[1].xyz,
-  //  lights[2].xyz,
-  //  lights[3].xyz
-  //);
 }
 `;

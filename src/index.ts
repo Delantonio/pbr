@@ -1,10 +1,8 @@
 import { GUI } from 'dat.gui';
 import { mat4, vec3 } from 'gl-matrix';
 import { Camera } from './camera';
-//import { TriangleGeometry } from './geometries/triangle';
 import { SphereGeometry } from './geometries/sphere';
 import { PointLight } from './lights/lights';
-import { Transform } from './transform';
 import { GLContext } from './gl';
 import { PBRShader } from './shader/pbr-shader';
 import { Texture, Texture2D } from './textures/texture';
@@ -12,7 +10,10 @@ import { UniformType } from './types';
 
 interface GUIProperties {
   albedo: number[];
-  diffuse: boolean;
+  burleyDiffuse: boolean;
+  orenNayarDiffuse: boolean;
+  diffuseIBL: boolean;
+  specularIBL: boolean;
 }
 
 /**
@@ -29,16 +30,14 @@ class Application {
   private _context: GLContext;
 
   private _shader: PBRShader;
-  //private _geometry: TriangleGeometry;
-  private _transformer: Transform;
   private _geometry: SphereGeometry;
-  private i = 0;
   private _plight: PointLight;
 
   private _uniforms: Record<string, UniformType | Texture>;
 
-  private _textureExample: Texture2D<HTMLElement> | null;
+  private _GGX_BRDF: Texture2D<HTMLElement> | null;
     private _textureDiffuse: Texture2D<HTMLElement> | null;
+    private _textureSpecular: Texture2D<HTMLElement> | null;
 
   private _camera: Camera;
 
@@ -55,14 +54,9 @@ class Application {
     this._camera = new Camera();
 
     this._geometry = new SphereGeometry(0.15, 32, 32);
-    //this._geometry = new TriangleGeometry();
-
-    //this._geometry.vec_translate(vec3.set(vec3.create(), -0.5, 0.5, 0));
 
     this._plight = new PointLight();
     this._plight.setPosition(0, 1, 2);
-
-    this._transformer = new Transform();
 
     this._uniforms = {
       'uMaterial.albedo': vec3.create(),
@@ -71,16 +65,21 @@ class Application {
       'uModel.localToProjection': mat4.create(),
       'uCamera.position': vec3.create(),
       'translationMat': mat4.create(),
-      'diffuseIBL': true,
+      'diffuseIBL': false,
+      'specularIBL': false,
     };
 
     this._shader = new PBRShader();
-    this._textureExample = null;
+    this._GGX_BRDF = null;
     this._textureDiffuse = null;
+    this._textureSpecular = null;
 
     this._guiProperties = {
       albedo: [255, 255, 255],
-      diffuseIBL: true
+      burleyDiffuse: false,
+      orenNayarDiffuse: false,
+      diffuseIBL: false,
+      specularIBL: false
     };
 
     this._createGUI();
@@ -94,21 +93,26 @@ class Application {
     this._context.uploadGeometry(this._geometry);
     this._context.compileProgram(this._shader);
 
-    // Example showing how to load a texture and upload it to GPU.
-    this._textureExample = await Texture2D.load(
+    this._GGX_BRDF = await Texture2D.load(
       'assets/ggx-brdf-integrated.png'
     );
+    if (this._GGX_BRDF !== null) {
+      this._context.uploadTexture(this._GGX_BRDF);
+      this._uniforms['GGX_BRDF'] = this._GGX_BRDF;
+    }
     this._textureDiffuse = await Texture2D.load(
         'assets/env/Alexs_Apt_2k-diffuse-RGBM.png'
         );
-    if (this._textureExample !== null) {
-      this._context.uploadTexture(this._textureExample);
-      // You can then use it directly as a uniform:
-      // ```uniforms.myTexture = this._textureExample;```
-    }
     if (this._textureDiffuse !== null) {
       this._context.uploadTexture(this._textureDiffuse);
       this._uniforms['diffuseTex'] = this._textureDiffuse;
+    }
+    this._textureSpecular = await Texture2D.load(
+        'assets/env/Alexs_Apt_2k-specular-RGBM.png'
+        );
+    if (this._textureSpecular !== null) {
+      this._context.uploadTexture(this._textureSpecular);
+      this._uniforms['specularTex'] = this._textureSpecular;
     }
   }
 
@@ -148,10 +152,6 @@ class Application {
       camera.transform.position,
     );
 
-
-    //vec3.set(this._uniforms['uLights[0].position'] as vec3, 1.0, 0.0, 5.0);
-    //vec3.set(this._uniforms['uLights[1].position'] as vec3, 2.0, 1.0, 5.0);
-
     const props = this._guiProperties;
 
     // Set the color from the GUI into the uniform list.
@@ -162,7 +162,10 @@ class Application {
       props.albedo[2] / 255
     );
 
-    this._uniforms['diffuseIBL'] = false;
+    this._uniforms['burleyDiffuse'] = props.burleyDiffuse;
+    this._uniforms['orenNayarDiffuse'] = props.orenNayarDiffuse;
+    this._uniforms['diffuseIBL'] = props.diffuseIBL;
+    this._uniforms['specularIBL'] = props.specularIBL;
 
 
     // Sets the viewProjection matrix.
@@ -175,9 +178,8 @@ class Application {
 
 
     // Draws the triangle.
-    const roughnesses = [0.0, 0.25, 0.5, 0.75, 1.0]; 
-    //const metalness = [1.0, 0.75, 0.5, 0.25, 0.05];
-    const metalness = [0.0, 0.25, 0.5, 0.75, 1.0];
+    const roughnesses = [0.05, 0.25, 0.5, 0.75, 0.95]; 
+    const metalness = [0.05, 0.25, 0.5, 0.75, 0.95];
     for (let y = -2; y < 3; y++)
     {
       for (let x = -2; x < 3; x++)
@@ -199,7 +201,6 @@ class Application {
         this._context.draw(this._geometry, this._shader, this._uniforms);
       }
     }
-    this.i = 1;
   }
 
   /**
@@ -216,7 +217,10 @@ class Application {
   private _createGUI(): GUI {
     const gui = new GUI();
     gui.addColor(this._guiProperties, 'albedo');
+    gui.add(this._guiProperties, 'burleyDiffuse');
+    gui.add(this._guiProperties, 'orenNayarDiffuse');
     gui.add(this._guiProperties, 'diffuseIBL');
+    gui.add(this._guiProperties, 'specularIBL');
     return gui;
   }
 }
