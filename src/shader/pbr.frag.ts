@@ -4,6 +4,7 @@ precision highp float;
 #define NB_LIGHTS 4
 
 in vec3 vNormalWS;
+in vec2 vUv;
 in vec3 vPosition;
 //in vec3 pLights[NB_LIGHTS];
 out vec4 outFragColor;
@@ -47,6 +48,13 @@ uniform bool specularIBL;
 
 uniform bool burleyDiffuse;
 uniform bool orenNayarDiffuse;
+
+// RUSTED IRON
+uniform bool rustedIron;
+uniform sampler2D albedo_mapRI;
+uniform sampler2D normal_mapRI;
+uniform sampler2D metallic_mapRI;
+uniform sampler2D roughness_mapRI;
 
 // From three.js
 vec4 sRGBToLinear( in vec4 value ) {
@@ -155,25 +163,40 @@ main()
 
   #define NB_LIGHTS 4
   vec3 lights[NB_LIGHTS] = vec3[NB_LIGHTS](
-    vec3(-3.0, 3.0, 2.0)
-    ,
+    vec3(-3.0, 3.0, 2.0),
     vec3(-3.0, -3.0, 2.0),
     vec3(3.0, 3.0, 2.0),
     vec3(3.0, -3.0, 2.0)
     );
 
   float roughness = uMaterial.roughness * uMaterial.roughness;
-  //float roughness = pow(clamp(uMaterial.roughness, 0.05, 1.0), 2.0);
   float metallic = uMaterial.metallic;
-  //float metallic = clamp(uMaterial.metallic, 0.05, 1.0);
-
-  vec3 f0 = mix(vec3(0.04), albedo, metallic);
 
   vec3 eyeDir = normalize(uCamera.position - vPosition);
   vec3 normal = normalize(vNormalWS);
 
   float NoV = clamp(dot(normal, vPosition), 0.001, 1.0);
   float NoE = clamp(dot(normal, eyeDir), 0.001, 1.0);
+
+  vec3 albedoRI = sRGBToLinear(texture(albedo_mapRI, vUv)).rgb;
+  vec3 roughnessRI = texture(roughness_mapRI, vUv).xyz;
+  vec3 metallicRI = texture(metallic_mapRI, vUv).xyz;
+  vec3 normalRI = texture(normal_mapRI, vUv).xyz;
+  normalRI = normalize(normalRI * 2.0 - 1.0);
+
+  if (rustedIron)
+  {
+    metallic = metallicRI.x * 0.99; // coeff is imagined material metallic value
+    albedo = albedoRI;
+    normal = normalRI;
+
+    // coeff is imagined material roughness value
+    // roughness should probably be less but here we are working with point lights
+    // so this is the best way to have the ball a little lighten
+    roughness = roughnessRI.y * 0.58;
+  }
+
+  vec3 f0 = mix(vec3(0.04), albedo, metallic);
 
   vec3 irradiance = vec3(0.0);
   vec3 gkS = vec3(0.0);
@@ -183,9 +206,8 @@ main()
     vec3 lightDir = normalize(lightPos - vPosition);
     vec3 halfway = normalize(lightDir + eyeDir);
 
-    //float NoL = clamp(dot(normal, lightDir), 0.01, 1.0);
     float NoL = clamp(dot(normal, lightDir), 1e-10, 1.0);
-    float NoH = clamp(dot(normal, halfway), 0.0001, 1.0);
+    float NoH = clamp(dot(normalize(vNormalWS), halfway), 0.0001, 1.0);
     float EoH = clamp(dot(eyeDir, halfway), 0.0001, 1.0);
 
     float D = D_GGX(NoH, roughness);
@@ -210,6 +232,8 @@ main()
       irradiance += (DisneyDiffuse + CookTorranceGGXSpecular) * 1.0 * NoL;
     else if (orenNayarDiffuse)
       irradiance += (ONDiffuse +  CookTorranceGGXSpecular) * 1.0 * NoL;
+    //else if (rustedIron)
+      //irradiance += roughnessRI / 4.0;
     else
       irradiance += (LambertianDiffuse + CookTorranceGGXSpecular) * 1.0 * NoL;
     gkS += kS / 4.0;

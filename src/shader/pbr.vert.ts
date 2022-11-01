@@ -5,6 +5,7 @@ precision highp float;
 
 in vec3 in_position;
 in vec3 in_normal;
+in vec2 in_uv;
 #ifdef USE_UV
   in vec2 in_uv;
 #endif // USE_UV
@@ -16,6 +17,7 @@ in vec3 in_normal;
 out vec3 vNormalWS;
 out vec3 vPosition;
 out vec3 pLights[NB_LIGHTS];
+out vec2 vUv;
 #ifdef USE_UV
   out vec2 vUv;
 #endif // USE_UV
@@ -49,6 +51,7 @@ main()
 
   gl_Position = uModel.localToProjection * positionLocal;
   vNormalWS = in_normal;
+  vUv = in_uv;
   vPosition = (translationMat * positionLocal).xyz;
 }
 `;

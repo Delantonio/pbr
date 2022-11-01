@@ -14,6 +14,7 @@ interface GUIProperties {
   orenNayarDiffuse: boolean;
   diffuseIBL: boolean;
   specularIBL: boolean;
+  rustedIron: boolean;
 }
 
 /**
@@ -36,8 +37,12 @@ class Application {
   private _uniforms: Record<string, UniformType | Texture>;
 
   private _GGX_BRDF: Texture2D<HTMLElement> | null;
-    private _textureDiffuse: Texture2D<HTMLElement> | null;
-    private _textureSpecular: Texture2D<HTMLElement> | null;
+  private _textureDiffuse: Texture2D<HTMLElement> | null;
+  private _textureSpecular: Texture2D<HTMLElement> | null;
+  private _textureRIalbedo: Texture2D<HTMLElement> | null;
+  private _textureRInormal: Texture2D<HTMLElement> | null;
+  private _textureRImetallic: Texture2D<HTMLElement> | null;
+  private _textureRIroughness: Texture2D<HTMLElement> | null;
 
   private _camera: Camera;
 
@@ -74,12 +79,18 @@ class Application {
     this._textureDiffuse = null;
     this._textureSpecular = null;
 
+    this._textureRIalbedo = null;
+    this._textureRInormal = null;
+    this._textureRImetallic = null;
+    this._textureRIroughness = null;
+
     this._guiProperties = {
       albedo: [255, 255, 255],
       burleyDiffuse: false,
       orenNayarDiffuse: false,
       diffuseIBL: false,
-      specularIBL: false
+      specularIBL: false,
+      rustedIron: false
     };
 
     this._createGUI();
@@ -113,6 +124,36 @@ class Application {
     if (this._textureSpecular !== null) {
       this._context.uploadTexture(this._textureSpecular);
       this._uniforms['specularTex'] = this._textureSpecular;
+    }
+
+    // RUSTED IRON TEXTURES
+    this._textureRIalbedo = await Texture2D.load(
+        'assets/rustediron/rustediron2_basecolor.png'
+        );
+    if (this._textureRIalbedo !== null) {
+      this._context.uploadTexture(this._textureRIalbedo);
+      this._uniforms['albedo_mapRI'] = this._textureRIalbedo;
+    }
+    this._textureRImetallic = await Texture2D.load(
+        'assets/rustediron/rustediron2_metallic.png'
+        );
+    if (this._textureRImetallic !== null) {
+      this._context.uploadTexture(this._textureRImetallic);
+      this._uniforms['metallic_mapRI'] = this._textureRImetallic;
+    }
+    this._textureRInormal = await Texture2D.load(
+        'assets/rustediron/rustediron2_normal.png'
+        );
+    if (this._textureRInormal !== null) {
+      this._context.uploadTexture(this._textureRInormal);
+      this._uniforms['normal_mapRI'] = this._textureRInormal;
+    }
+    this._textureRIroughness = await Texture2D.load(
+        'assets/rustediron/rustediron2_roughness.png'
+        );
+    if (this._textureRIroughness !== null) {
+      this._context.uploadTexture(this._textureRIroughness);
+      this._uniforms['roughness_mapRI'] = this._textureRIroughness;
     }
   }
 
@@ -166,7 +207,7 @@ class Application {
     this._uniforms['orenNayarDiffuse'] = props.orenNayarDiffuse;
     this._uniforms['diffuseIBL'] = props.diffuseIBL;
     this._uniforms['specularIBL'] = props.specularIBL;
-
+    this._uniforms['rustedIron'] = props.rustedIron;
 
     // Sets the viewProjection matrix.
     // **Note**: if you want to modify the position of the geometry, you will
@@ -221,6 +262,7 @@ class Application {
     gui.add(this._guiProperties, 'orenNayarDiffuse');
     gui.add(this._guiProperties, 'diffuseIBL');
     gui.add(this._guiProperties, 'specularIBL');
+    gui.add(this._guiProperties, 'rustedIron');
     return gui;
   }
 }
