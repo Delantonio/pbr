@@ -67,7 +67,7 @@ export class GLContext {
 
   public constructor(canvas: HTMLCanvasElement) {
     this._gl = canvas.getContext('webgl2') as WebGL2RenderingContext;
-    this._gl.clearColor(0.1, 0.1, 0.1, 1.0);
+    this._gl.clearColor(0.1, 0.5, 0.6, 1.0);
 
     this._geometries = new WeakMap();
     this._textures = new WeakMap();
@@ -302,7 +302,7 @@ export class GLContext {
    *
    * ## Note
    *
-   * This will delete the program, the vertex shader, as well as the frament
+   * This will delete the program, the vertex shader, as well as the fragment
    * shader.
    *
    * @param geometry - The geometry to delete
